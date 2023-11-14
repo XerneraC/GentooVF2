@@ -187,6 +187,7 @@ esac
 scriptlog "Verifying dependencies..."
 mkfs.vfat  --help || error_out "Command \`mkfs.vfat\` is missing! (most likely found in the \`dosfstools\` package)"
 mkfs.btrfs --help || error_out "Command \`mkfs.btrfs\` is missing! (most likely found in the \`btrfs-progs\` package)"
+dracut --help     || error_out "Command \`dracut\` is missing! (most likely found in the \`dracut\` package)"
 
 
 if [[ $image_direct_drive = true ]]; then
