@@ -1,0 +1,405 @@
+#!/bin/bash
+
+
+scriptlog () {
+	echo -e "\033[32m>>= \033[33m${1} \033[32m=<<\033[0m"
+}
+
+error_out () {
+	echo -e "\033[31m|||>>> Error occured:\033[0m"
+	echo
+	echo -e "\033[33m${1}\033[0m"
+	echo
+	echo -e "\033[31m|||>>> Image cannot be built\033[0m"
+	exit 1
+}
+
+
+
+
+###########################################################################################################################################################
+#    ______   ______   .__   __.  _______  __    _______  __    __  .______          ___   .___________. __    ______   .__   __. 
+#   /      | /  __  \  |  \ |  | |   ____||  |  /  _____||  |  |  | |   _  \        /   \  |           ||  |  /  __  \  |  \ |  | 
+#  |  ,----'|  |  |  | |   \|  | |  |__   |  | |  |  __  |  |  |  | |  |_)  |      /  ^  \ `---|  |----`|  | |  |  |  | |   \|  | 
+#  |  |     |  |  |  | |  . `  | |   __|  |  | |  | |_ | |  |  |  | |      /      /  /_\  \    |  |     |  | |  |  |  | |  . `  | 
+#  |  `----.|  `--'  | |  |\   | |  |     |  | |  |__| | |  `--'  | |  |\  \----./  _____  \   |  |     |  | |  `--'  | |  |\   | 
+#   \______| \______/  |__| \__| |__|     |__|  \______|  \______/  | _| `._____/__/     \__\  |__|     |__|  \______/  |__| \__| 
+#                                                                                                                                 
+
+VF2_sf_ver=3.8.2
+
+# Minimal
+minimal_packages="net-misc/dhcpcd app-admin/sysklogd sys-apps/mlocate net-misc/chrony sys-fs/btrfs-progs sys-kernel/dracut dev-vcs/git dev-util/pahole"
+minimal_services="sysklogd chronyd agetty.ttyS0"
+
+# Basic
+basic_packages="net-misc/openssh app-editors/vim sys-apps/pciutils app-misc/neofetch app-vim/gentoo-syntax app-admin/sudo"
+basic_services="sshd"
+
+
+clang_packages="sys-devel/clang sys-devel/llvm sys-devel/lld"
+
+
+working_dir="workspace"
+
+resource_dir="resources"
+download_dir="${working_dir}/dl"
+
+
+stage3_index="https://distfiles.gentoo.org/releases/riscv/autobuilds/current-stage3-rv64_lp64d-openrc/latest-stage3-rv64_lp64d-openrc.txt"
+stage3_id="$(wget -qO- ${stage3_index} | sed -E -n 's/^.*([0-9]{8}T[0-9]{6}Z).*$/\1/p')" || error_out "Cannot download stage 3 index"
+stage3_URI="https://distfiles.gentoo.org/releases/riscv/autobuilds/${stage3_id}/stage3-rv64_lp64d-openrc-${stage3_id}.tar.xz"
+
+spl_URI="https://github.com/starfive-tech/VisionFive2/releases/download/VF2_v${VF2_sf_ver}/u-boot-spl.bin.normal.out"
+fwp_URI="https://github.com/starfive-tech/VisionFive2/releases/download/VF2_v${VF2_sf_ver}/visionfive2_fw_payload.img"
+
+
+agetty_serial_conf="${resource_dir}/agetty_serial.conf"
+  kernel_repo_conf="${resource_dir}/kernel_repo.conf"
+   clang_make_conf="${resource_dir}/clang_make.conff"
+   part_table_file="${resource_dir}/part_table"
+     gcc_make_conf="${resource_dir}/gcc_make.conf"
+     extlinux_conf="${resource_dir}/extlinux.conf"
+       resolv_conf="${resource_dir}/resolv.conf"
+        fstab_file="${resource_dir}/fstab"
+         uEnv_file="${resource_dir}/uEnv.txt"
+
+stage3_tarball="${download_dir}/stage3.tar.xz"
+       spl_img="${download_dir}/spl.bin.normal.out"
+        fw_img="${download_dir}/fw_payload.img"
+
+
+
+
+###########################################################################################################################################################
+#  .______      ___      .______          _______. __  .__   __.   _______         ___      .______        _______      _______.
+#  |   _  \    /   \     |   _  \        /       ||  | |  \ |  |  /  _____|       /   \     |   _  \      /  _____|    /       |
+#  |  |_)  |  /  ^  \    |  |_)  |      |   (----`|  | |   \|  | |  |  __        /  ^  \    |  |_)  |    |  |  __     |   (----`
+#  |   ___/  /  /_\  \   |      /        \   \    |  | |  . `  | |  | |_ |      /  /_\  \   |      /     |  | |_ |     \   \    
+#  |  |     /  _____  \  |  |\  \----.----)   |   |  | |  |\   | |  |__| |     /  _____  \  |  |\  \----.|  |__| | .----)   |   
+#  | _|    /__/     \__\ | _| `._____|_______/    |__| |__| \__|  \______|    /__/     \__\ | _| `._____| \______| |_______/    
+#                                                                                                                               
+
+usage="\n
+usage:\n
+\t./image device <device> [Options...]\n
+\t\tImage a device connected. Example: \`./image direct sda [Options...]\`\n
+\t./image file <device> [Options...]\n
+\t\tProduce an image file instead. Example: \`./image file image.img [Options...]\`\n
+\t./image help\n
+\t\tPrint this help page\n
+\n
+Options:\n
+\t--hostname=<name>\n
+\t\tProvide a hostname. Default is \"GentooVF2\"\n
+\t--timezone=<zone>\n
+\t\tProvide a timezone. Default is \"Europe/Brussels\"\n
+\t--useclang\n
+\t\tImage a clang-based version of gentoo\n
+\t--skipclean\n
+\t\tDon't unmount and remove the working directory at the end
+\t--scope=<scope>\n
+\t\tChoose the scope of the image. Default value: \`BASIC\`\n
+\n
+Scopes:\n
+\tMINIMAL\n
+\t\tThe most minimal setup possible. Only has root account\n
+\tBASIC\n
+\t\tHas a few additional packages that the user most likely wants\n
+\n
+\n
+Examples:\n
+\t\`./image device sda --hostname=\"MyVisionfive2\" --timezone=\"Europe/Zurich\" --scope=MINIMAL\`\n
+\t\tThis will create a minimal system on /dev/sda with the hostname \"MyVisionfive2\" and the timezone of Zurich\n
+\t\`./image file clang-based.img --useclang\n
+\t\tThis will create an image called \`clang-based.img\` using clang as its compiler\n
+"
+
+case $1 in
+	device)
+		image_direct_drive=true
+		image_target="/dev/${2}"
+		;;
+	file)
+		image_direct_drive=false
+		image_target=$2
+		;;
+	help)
+		echo -e $usage
+		exit 0
+		;;
+	*)
+		error_out "Unrecognized mode '$1'. Check \`<command> help\` for more info"
+		;;
+esac
+
+
+time_zone="Europe/Brussels"
+compile_with_clang=false
+hostname="GentooVF2"
+cleanup=true
+scope=BASIC
+
+for arg in "${@:3}"; do
+	case $arg in
+		--hostname=*)
+			hostname="$(echo $arg | sed -E 's/^--hostname=(.*)/\1/')" ;;
+		--timezone=*)
+			zone="$(echo $arg | sed -E 's/^--timezone=(.*)/\1/')" ;;
+		--useclang)
+			compile_with_clang=true ;;
+		--scope=*)
+			scope="$(echo $arg | sed -E 's/^--scope=(.*)/\1/')" ;;
+		--skipclean)
+			cleanup=false ;;
+		*)
+			error_out "Unrecognized option '$arg'. Check \`<command> help\` for more info" ;;
+	esac
+done
+
+case $scope in
+	MINIMAL)
+		provide_minimal=true
+		provide_basic=false
+		scriptlog "Preparing minimal system"
+		;;
+	BASIC)
+		provide_minimal=true
+		provide_basic=true
+		scriptlog "Preparing basic system"
+		;;
+	*)
+		error_out "Unrecognized scope '$scope'. Check \`<command> help\` for more info" ;;
+esac
+
+
+
+
+###########################################################################################################################################################
+#  .______   .______       _______ .______      ___      .______          ___   .___________. __    ______   .__   __. 
+#  |   _  \  |   _  \     |   ____||   _  \    /   \     |   _  \        /   \  |           ||  |  /  __  \  |  \ |  | 
+#  |  |_)  | |  |_)  |    |  |__   |  |_)  |  /  ^  \    |  |_)  |      /  ^  \ `---|  |----`|  | |  |  |  | |   \|  | 
+#  |   ___/  |      /     |   __|  |   ___/  /  /_\  \   |      /      /  /_\  \    |  |     |  | |  |  |  | |  . `  | 
+#  |  |      |  |\  \----.|  |____ |  |     /  _____  \  |  |\  \----./  _____  \   |  |     |  | |  `--'  | |  |\   | 
+#  | _|      | _| `._____||_______|| _|    /__/     \__\ | _| `._____/__/     \__\  |__|     |__|  \______/  |__| \__| 
+#                                                                                                                      
+
+scriptlog "Verifying dependencies..."
+mkfs.vfat  --help || error_out "Command \`mkfs.vfat\` is missing! (most likely found in the \`dosfstools\` package)"
+mkfs.btrfs --help || error_out "Command \`mkfs.btrfs\` is missing! (most likely found in the \`btrfs-progs\` package)"
+
+
+if [[ $image_direct_drive = true ]]; then
+	scriptlog "Imaging to physical target..."
+else
+	scriptlog "Imaging to image file..."
+	rm -f ${image_target}
+	fallocate -l 3500M ${image_target}
+	image_target=$(losetup -f -P --show "${image_target}") || error_out "Cannot create loopback device"
+	scriptlog "Allocated image file"
+fi
+scriptlog "Imaging target is ${image_target}"
+
+
+mkdir -p ${working_dir}  || error_out "Cannot create working dir"
+mkdir -p ${download_dir} || error_out "Cannot create download dir"
+
+
+scriptlog "Downloading Stage 3 Tarball"
+wget $stage3_URI -O ${stage3_tarball} || error_out "Cannot download stage 3"
+
+
+scriptlog "Downloading VF2 software"
+wget $spl_URI -O ${spl_img} || error_out "Cannot download VF2 software (SPL)"
+wget $fwp_URI -O ${fw_img}  || error_out "Cannot download VF2 software (Firmware Payload)"
+
+
+
+
+###########################################################################################################################################################
+#   _______  __   __       _______     _______.____    ____  _______.___________. _______ .___  ___.         _______. _______ .___________. __    __  .______   
+#  |   ____||  | |  |     |   ____|   /       |\   \  /   / /       |           ||   ____||   \/   |        /       ||   ____||           ||  |  |  | |   _  \  
+#  |  |__   |  | |  |     |  |__     |   (----` \   \/   / |   (----`---|  |----`|  |__   |  \  /  |       |   (----`|  |__   `---|  |----`|  |  |  | |  |_)  | 
+#  |   __|  |  | |  |     |   __|     \   \      \_    _/   \   \       |  |     |   __|  |  |\/|  |        \   \    |   __|      |  |     |  |  |  | |   ___/  
+#  |  |     |  | |  `----.|  |____.----)   |       |  | .----)   |      |  |     |  |____ |  |  |  |    .----)   |   |  |____     |  |     |  `--'  | |  |      
+#  |__|     |__| |_______||_______|_______/        |__| |_______/       |__|     |_______||__|  |__|    |_______/    |_______|    |__|      \______/  | _|      
+#                                                                                                                                                               
+
+scriptlog "Partitioning image"
+sfdisk $image_target < ${part_table_file} || error_out "Cannot partition disk"
+
+sfdisk -l $image_target | sed -n -E 's/^(\/dev\/[a-z0-9]+)\s.*$/\1/p' > ${working_dir}/partitions
+
+       spl_part="$(cat ${working_dir}/partitions | sed -n '1p')"
+fw_payload_part="$(cat ${working_dir}/partitions | sed -n '2p')"
+       efi_part="$(cat ${working_dir}/partitions | sed -n '3p')"
+      root_part="$(cat ${working_dir}/partitions | sed -n '4p')"
+
+scriptlog "Checking integrity of partitions"
+case $spl_part in
+	*1) ;;
+	*) error_out "SPL partition is broken! Expected '*1' but got ${spl_part}!" ;;
+esac
+
+case $fw_payload_part in
+	*2) ;;
+	*) error_out "FW Payload paritition is broken! Expected '*2' but got ${fw_payload_part}!" ;;
+esac
+
+case $efi_part in
+	*3) ;;
+	*) error_out "EFI partition is broken! Expected '*3' but got ${efi_part}!" ;;
+esac
+
+case $root_part in
+	*4) ;;
+	*) error_out "Root partition is broken! Expected '*4' but got ${root_part}!" ;;
+esac
+
+
+scriptlog "Flashing SPL and the firmware payload"
+dd if=${spl_img} of=${spl_part}        bs=512 || error_out "Cannot flash SPL"
+dd if=${fw_img}  of=${fw_payload_part} bs=512 || error_out "Cannot flash Firmware Payload"
+
+
+root_fs="${working_dir}/mountpoint"
+efi_fs="${root_fs}/boot"
+
+
+scriptlog "Creating EFI and Root filesystems"
+mkfs.vfat  -n EFI    $efi_part  || error_out "Cannot make filesystem (EFI)"
+mkfs.btrfs -L VF2 -f $root_part || error_out "Cannot make filesystem (root)"
+
+
+scriptlog "Mounting EFI and Root filesystems"
+mkdir -p $root_fs         || error_out "Cannot create mountpoint"
+mount $root_part $root_fs || error_out "Cannot mount image root"
+
+mkdir -p ${efi_fs}      || error_out "Cannot create EFI mountpoint"
+mount $efi_part $efi_fs || error_out "Cannot mount EFI"
+
+
+scriptlog "Setting up EFI filesystem for U-Boot"
+mkdir -p ${efi_fs}/extlinux
+install -o root -g root -m 644 ${uEnv_file} ${efi_fs}/uEnv.txt
+install -o root -g root -m 644 ${extlinux_conf} ${efi_fs}/extlinux/extlinux.conf
+
+
+scriptlog "Extracting Stage 3..."
+tar xpf $stage3_tarball --xattrs-include='*.*' --numeric-owner -C $root_fs || error_out "Cannot extract stage 3"
+
+
+scriptlog "Copying over other files"
+mkdir -p ${root_fs}/etc/portage/repos.conf
+
+cp $gcc_make_conf         ${root_fs}/etc/portage/make.conf
+cp $fstab_file            ${root_fs}/etc/fstab
+cp $resolv_conf           ${root_fs}/etc/resolv.conf
+cp $kernel_repo_conf      ${root_fs}/etc/portage/repos.conf/cwte-linux-repo.conf
+cp $agetty_serial_conf    ${root_fs}/etc/conf.d/agetty.ttyS0
+
+cp ${root_fs}/usr/share/portage/config/repos.conf ${root_fs}/etc/portage/repos.conf/gentoo.conf
+
+ln -s ${root_fs}/etc/init.d/agetty ${root_fs}/etc/init.d/agetty.ttyS0
+
+echo "${hostname}"  > ${root_fs}/etc/hostname
+echo "${time_zone}" > ${root_fs}/etc/timezone
+
+
+
+
+###########################################################################################################################################################
+#    ______  __    __  .______        ______     ______   .___________.
+#   /      ||  |  |  | |   _  \      /  __  \   /  __  \  |           |
+#  |  ,----'|  |__|  | |  |_)  |    |  |  |  | |  |  |  | `---|  |----`
+#  |  |     |   __   | |      /     |  |  |  | |  |  |  |     |  |     
+#  |  `----.|  |  |  | |  |\  \----.|  `--'  | |  `--'  |     |  |     
+#   \______||__|  |__| | _| `._____| \______/   \______/      |__|     
+#                                                                      
+
+scriptlog "Beginning setup via chroot"
+
+mount --rbind /dev  ${root_fs}/dev
+mount --rbind /sys  ${root_fs}/sys
+mount --rbind /tmp  ${root_fs}/tmp
+mount --bind  /run  ${root_fs}/run
+mount -t proc /proc ${root_fs}/proc
+
+mount --make-rslave ${root_fs}/dev
+mount --make-rslave ${root_fs}/sys
+
+
+scriptlog "Syncing repositories"
+chroot ${root_fs} emerge-webrsync
+chroot ${root_fs} emerge --sync
+
+
+scriptlog "Updating everything"
+chroot ${root_fs} emerge --verbose --update --deep --newuse @world || error_out "Cannot update system"
+
+
+if [[ $compile_with_clang = true ]]; then
+	scriptlog "Installing LLVM toolchain"
+	chroot ${root_fs} emerge ${clang_packages} || error_out "Cannot install clang packages"
+	rm ${root_fs}/etc/portage/make.conf
+	cp ${clang_make_conf} ${root_fs}/etc/portage/make.conf
+	scriptlog "Recompiling everything with clang"
+	chroot ${root_fs} emerge -e @world || error_out "Cannot recompile after using clang"
+fi
+
+
+if [[ $provide_minimal = true ]]; then
+	scriptlog "Installing minimal packages"
+	chroot ${root_fs} emerge ${minimal_packages} || error_out "Cannot install minimal packages"
+	for service in ${minimal_services}; do
+		chroot ${root_fs} rc-update add ${service} default || error_out "Cannot enable minimal service ${service}"
+	done
+fi
+
+if [[ $provide_basic = true ]]; then
+	scriptlog "Installing basic packages"
+	chroot ${root_fs} emerge ${basic_packages} || error_out "Cannot install basic packages"
+	for service in ${basic_services}; do
+		chroot ${root_fs} rc-update add ${service} default || error_out "Cannot enable basic service ${service}"
+	done
+fi
+
+
+scriptlog "Installing Kernel"
+chroot ${root_fs} emaint sync -r cwte-linux-repo
+chroot ${root_fs} emerge sys-kernel/cwte-linux || error_out "Cannot install kernel"
+chroot ${root_fs} dracut --strip --kver "$(ls /lib/modules/)" || error_out "Cannot build initramfs"
+chroot ${root_fs} mv /boot/initramfs-*.img /boot/initramfs-linux.img
+
+
+scriptlog "Setting timezone"
+chroot ${root_fs} emerge --config sys-libs/timezone-data
+
+
+scriptlog "Configuring acounts"
+chroot ${root_fs} /bin/bash -c "echo 'root:rvgentoo' | chpasswd"
+echo "%wheel  ALL=(ALL:ALL) ALL" >> ${root_fs}/etc/sudoers
+
+if [[ $provide_basic = true ]]; then
+	scriptlog "Setting up the \`user\` account"
+	chroot ${root_fs} useradd -g users -G wheel -m user
+	chroot ${root_fs} /bin/bash -c "echo 'user:user' | chpasswd"
+fi
+
+
+if [[ $cleanup = true ]]; then
+	scriptlog "Cleaning up..."
+
+	umount -R ${root_fs}/dev  || error_out "Cannot unmount /dev \nDon't worry. All the work was done, so you can just unmount manually, or restart, and your image is waiting for you"
+	umount -R ${root_fs}/sys  || error_out "Cannot unmount /sys \nDon't worry. All the work was done, so you can just unmount manually, or restart, and your image is waiting for you"
+	umount    ${root_fs}/tmp  || error_out "Cannot unmount /tmp \nDon't worry. All the work was done, so you can just unmount manually, or restart, and your image is waiting for you"
+	umount    ${root_fs}/run  || error_out "Cannot unmount /run \nDon't worry. All the work was done, so you can just unmount manually, or restart, and your image is waiting for you"
+	umount    ${root_fs}/proc || error_out "Cannot unmount /proc\nDon't worry. All the work was done, so you can just unmount manually, or restart, and your image is waiting for you"
+
+	umount ${root_fs}/boot || error_out "Cannot unmount /boot\nDon't worry. All the work was done, so you can just unmount manually, or restart, and your image is waiting for you"
+	umount ${root_fs}      || error_out "Cannot unmount /    \nDon't worry. All the work was done, so you can just unmount manually, or restart, and your image is waiting for you"
+
+	rm -R ${working_dir} || error_out "Cannot remove working directory\nDon't worry. All the work was done, so you can just unmount manually, or restart, and your image is waiting for you"
+fi
+
+scriptlog "Done! Image created!"
