@@ -300,7 +300,7 @@ cp $agetty_serial_conf    ${root_fs}/etc/conf.d/agetty.ttyS0
 
 cp ${root_fs}/usr/share/portage/config/repos.conf ${root_fs}/etc/portage/repos.conf/gentoo.conf
 
-ln -s ${root_fs}/etc/init.d/agetty ${root_fs}/etc/init.d/agetty.ttyS0
+
 
 echo "${hostname}"  > ${root_fs}/etc/hostname
 echo "${time_zone}" > ${root_fs}/etc/timezone
@@ -351,6 +351,7 @@ fi
 if [[ $provide_minimal = true ]]; then
 	scriptlog "Installing minimal packages"
 	chroot ${root_fs} emerge ${minimal_packages} || error_out "Cannot install minimal packages"
+	chroot ${root_fs} ln -s ${root_fs}/etc/init.d/agetty ${root_fs}/etc/init.d/agetty.ttyS0
 	for service in ${minimal_services}; do
 		chroot ${root_fs} rc-update add ${service} default || error_out "Cannot enable minimal service ${service}"
 	done
