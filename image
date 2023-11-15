@@ -97,7 +97,7 @@ Options:\n
 \t--useclang\n
 \t\tImage a clang-based version of gentoo\n
 \t--skipclean\n
-\t\tDon't unmount and remove the working directory at the end
+\t\tDon't unmount and remove the working directory at the end\n
 \t--scope=<scope>\n
 \t\tChoose the scope of the image. Default value: \`BASIC\`\n
 \n
