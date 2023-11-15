@@ -185,8 +185,8 @@ esac
 #                                                                                                                      
 
 scriptlog "Verifying dependencies..."
-mkfs.vfat  --help || error_out "Command \`mkfs.vfat\` is missing! (most likely found in the \`dosfstools\` package)"
-mkfs.btrfs --help || error_out "Command \`mkfs.btrfs\` is missing! (most likely found in the \`btrfs-progs\` package)"
+command -v mkfs.vfat  &> /dev/null || error_out "Command \`mkfs.vfat\` is missing! (most likely found in the \`dosfstools\` package)"
+command -v mkfs.btrfs &> /dev/null || error_out "Command \`mkfs.btrfs\` is missing! (most likely found in the \`btrfs-progs\` package)"
 
 
 if [[ $image_direct_drive = true ]]; then
