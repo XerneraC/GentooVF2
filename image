@@ -56,7 +56,7 @@ fwp_URI="https://github.com/starfive-tech/VisionFive2/releases/download/VF2_v${V
 
 agetty_serial_conf="${resource_dir}/agetty_serial.conf"
   kernel_repo_conf="${resource_dir}/kernel_repo.conf"
-   clang_make_conf="${resource_dir}/clang_make.conff"
+   clang_make_conf="${resource_dir}/clang_make.conf"
    part_table_file="${resource_dir}/part_table"
      gcc_make_conf="${resource_dir}/gcc_make.conf"
      extlinux_conf="${resource_dir}/extlinux.conf"
