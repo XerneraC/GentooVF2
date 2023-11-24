@@ -351,7 +351,7 @@ fi
 if [[ $provide_minimal = true ]]; then
 	scriptlog "Installing minimal packages"
 	chroot ${root_fs} emerge ${minimal_packages} || error_out "Cannot install minimal packages"
-	ln -s ${root_fs}/etc/init.d/agetty ${root_fs}/etc/init.d/agetty.ttyS0
+	chroot ${root_fs} ln -s /etc/init.d/agetty /etc/init.d/agetty.ttyS0
 	for service in ${minimal_services}; do
 		chroot ${root_fs} rc-update add ${service} default || error_out "Cannot enable minimal service ${service}"
 	done
