@@ -38,7 +38,7 @@ basic_services="sshd"
 
 
 clang_packages="sys-devel/clang sys-devel/llvm sys-devel/lld"
-
+gcc_only_pkgs="sys-fs/btrfs-progs"
 
 working_dir="workspace"
 
@@ -55,7 +55,6 @@ fwp_URI="https://github.com/starfive-tech/VisionFive2/releases/download/VF2_v${V
 
 
 agetty_serial_conf="${resource_dir}/agetty_serial.conf"
-fallback_pkg_index="${resource_dir}/fallback-packages"
  gcc_fallback_conf="${resource_dir}/fallback-gcc"
   kernel_repo_conf="${resource_dir}/kernel_repo.conf"
    clang_make_conf="${resource_dir}/clang_make.conf"
@@ -349,7 +348,10 @@ if [[ $compile_with_clang = true ]]; then
 	# Setting up fallback
 	cp ${gcc_fallback_conf} ${root_fs}/etc/portage/env/fallback-gcc
 	rm -R ${root_fs}/etc/portage/package.env
-	cp ${fallback_pkg_index} ${root_fs}/etc/portage/package.env
+	touch ${root_fs}/etc/portage/package.env
+	for gcc_pkg in $gcc_only_pkgs; do
+		echo "${gcc_pkg} fallback-gcc" >> ${root_fs}/etc/portage/package.env
+	done
 
 	scriptlog "Recompiling everything with clang"
 	chroot ${root_fs} emerge -e @world || error_out "Cannot recompile after using clang"
