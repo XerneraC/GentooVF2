@@ -2,15 +2,15 @@
 
 
 scriptlog () {
-	echo -e "\033[32m>>= \033[33m${1} \033[32m=<<\033[0m"
+	echo -e "\033[38;5;201m>>= Imager =<< \033[0m${1}"
 }
 
 error_out () {
-	echo -e "\033[31m|||>>> Error occured:\033[0m"
-	echo
-	echo -e "\033[33m${1}\033[0m"
-	echo
-	echo -e "\033[31m|||>>> Image cannot be built\033[0m"
+	echo -e "\033[31m/**/ Error occured:\033[0m"
+	echo -e "\033[31m|"
+	echo -e "\033[31m| \033[0m${1}"
+	echo -e "\033[31m|"
+	echo -e "\033[31m\**\ Image cannot be built\033[0m"
 	exit 1
 }
 
@@ -197,7 +197,7 @@ if [[ $image_direct_drive = true ]]; then
 else
 	scriptlog "Imaging to image file..."
 	rm -f ${image_target}
-	fallocate -l 3500M ${image_target}
+	fallocate -l 3500M ${image_target} || error_out "Cannot allocate image file"
 	image_target=$(losetup -f -P --show "${image_target}") || error_out "Cannot create loopback device"
 	scriptlog "Allocated image file"
 fi
@@ -208,11 +208,11 @@ mkdir -p ${working_dir}  || error_out "Cannot create working dir"
 mkdir -p ${download_dir} || error_out "Cannot create download dir"
 
 
-scriptlog "Downloading Stage 3 Tarball"
+scriptlog "Downloading Stage 3 Tarball..."
 wget $stage3_URI -O ${stage3_tarball} || error_out "Cannot download stage 3"
 
 
-scriptlog "Downloading VF2 software"
+scriptlog "Downloading VF2 software..."
 wget $spl_URI -O ${spl_img} || error_out "Cannot download VF2 software (SPL)"
 wget $fwp_URI -O ${fw_img}  || error_out "Cannot download VF2 software (Firmware Payload)"
 
@@ -228,7 +228,7 @@ wget $fwp_URI -O ${fw_img}  || error_out "Cannot download VF2 software (Firmware
 #  |__|     |__| |_______||_______|_______/        |__| |_______/       |__|     |_______||__|  |__|    |_______/    |_______|    |__|      \______/  | _|      
 #                                                                                                                                                               
 
-scriptlog "Partitioning image"
+scriptlog "Partitioning image..."
 sfdisk $image_target < ${part_table_file} || error_out "Cannot partition disk"
 
 sfdisk -l $image_target | sed -n -E 's/^(\/dev\/[a-z0-9]+)\s.*$/\1/p' > ${working_dir}/partitions
@@ -260,7 +260,7 @@ case $root_part in
 esac
 
 
-scriptlog "Flashing SPL and the firmware payload"
+scriptlog "Flashing SPL and the firmware payload..."
 dd if=${spl_img} of=${spl_part}        bs=512 || error_out "Cannot flash SPL"
 dd if=${fw_img}  of=${fw_payload_part} bs=512 || error_out "Cannot flash Firmware Payload"
 
@@ -269,12 +269,12 @@ root_fs="${working_dir}/mountpoint"
 efi_fs="${root_fs}/boot"
 
 
-scriptlog "Creating EFI and Root filesystems"
+scriptlog "Creating EFI and Root filesystems..."
 mkfs.vfat  -n EFI    $efi_part  || error_out "Cannot make filesystem (EFI)"
 mkfs.btrfs -L VF2 -f $root_part || error_out "Cannot make filesystem (root)"
 
 
-scriptlog "Mounting EFI and Root filesystems"
+scriptlog "Mounting EFI and Root filesystems..."
 mkdir -p $root_fs         || error_out "Cannot create mountpoint"
 mount $root_part $root_fs || error_out "Cannot mount image root"
 
@@ -282,7 +282,7 @@ mkdir -p ${efi_fs}      || error_out "Cannot create EFI mountpoint"
 mount $efi_part $efi_fs || error_out "Cannot mount EFI"
 
 
-scriptlog "Setting up EFI filesystem for U-Boot"
+scriptlog "Setting up EFI filesystem for U-Boot..."
 mkdir -p ${efi_fs}/extlinux
 install -o root -g root -m 644 ${uEnv_file} ${efi_fs}/uEnv.txt
 install -o root -g root -m 644 ${extlinux_conf} ${efi_fs}/extlinux/extlinux.conf
@@ -292,7 +292,7 @@ scriptlog "Extracting Stage 3..."
 tar xpf $stage3_tarball --xattrs-include='*.*' --numeric-owner -C $root_fs || error_out "Cannot extract stage 3"
 
 
-scriptlog "Copying over other files"
+scriptlog "Copying over other files..."
 mkdir -p ${root_fs}/etc/portage/repos.conf
 
 cp $gcc_make_conf         ${root_fs}/etc/portage/make.conf
@@ -320,34 +320,36 @@ echo "${time_zone}" > ${root_fs}/etc/timezone
 #   \______||__|  |__| | _| `._____| \______/   \______/      |__|     
 #                                                                      
 
-scriptlog "Beginning setup via chroot"
+scriptlog "Beginning setup via chroot..."
 
-mount --rbind /dev  ${root_fs}/dev
-mount --rbind /sys  ${root_fs}/sys
-mount --rbind /tmp  ${root_fs}/tmp
-mount --bind  /run  ${root_fs}/run
-mount -t proc /proc ${root_fs}/proc
+mount --rbind /dev  ${root_fs}/dev  || error_out "Failed to mount /dev for chroot"
+mount --rbind /sys  ${root_fs}/sys  || error_out "Failed to mount /sys for chroot"
+mount --rbind /tmp  ${root_fs}/tmp  || error_out "Failed to mount /tmp for chroot"
+mount --bind  /run  ${root_fs}/run  || error_out "Failed to mount /run for chroot"
+mount -t proc /proc ${root_fs}/proc || error_out "Failed to mount /proc for chroot"
 
-mount --make-rslave ${root_fs}/dev
-mount --make-rslave ${root_fs}/sys
-
-
-scriptlog "Syncing repositories"
-chroot ${root_fs} emerge-webrsync
-chroot ${root_fs} emerge --sync
+mount --make-rslave ${root_fs}/dev || error_out "Failed to make rslave /dev"
+mount --make-rslave ${root_fs}/sys || error_out "Failed to make rslave /sys"
 
 
-scriptlog "Updating everything"
+scriptlog "Syncing repositories..."
+chroot ${root_fs} emerge-webrsync || error_out "Failed to webrsync"
+chroot ${root_fs} emerge --sync   || error_out "Failed to sync repos"
+
+
+scriptlog "Updating everything..."
 chroot ${root_fs} emerge -uDNq @world || error_out "Cannot update system"
 
 
 if [[ $compile_with_clang = true ]]; then
-	scriptlog "Installing LLVM toolchain"
+	scriptlog "Installing LLVM toolchain..."
 	chroot ${root_fs} emerge -q ${clang_packages} || error_out "Cannot install clang packages"
+
+	scriptlog "Configuring Portage..."
 	rm ${root_fs}/etc/portage/make.conf
 	cp ${clang_make_conf} ${root_fs}/etc/portage/make.conf
 
-	scriptlog "Setting up gcc fallback"
+	scriptlog "Setting up gcc fallback..."
 	cp ${gcc_fallback_conf} ${root_fs}/etc/portage/env/fallback-gcc
 	rm -R ${root_fs}/etc/portage/package.env
 	touch ${root_fs}/etc/portage/package.env
@@ -355,48 +357,52 @@ if [[ $compile_with_clang = true ]]; then
 		echo "${gcc_pkg} fallback-gcc" >> ${root_fs}/etc/portage/package.env
 	done
 
-	scriptlog "Recompiling everything with clang"
+	scriptlog "Recompiling everything with clang..."
 	chroot ${root_fs} emerge -eq @world || error_out "Cannot recompile after using clang"
 fi
 
 
 if [[ $provide_minimal = true ]]; then
-	scriptlog "Installing minimal packages"
-	chroot ${root_fs} emerge -q ${minimal_packages} || error_out "Cannot install minimal packages"
-	chroot ${root_fs} ln -s /etc/init.d/agetty /etc/init.d/agetty.ttyS0
+	scriptlog "Installing minimal packages..."
+	chroot ${root_fs} emerge -q ${minimal_packages}                     || error_out "Cannot install minimal packages"
+	chroot ${root_fs} ln -s /etc/init.d/agetty /etc/init.d/agetty.ttyS0 || error_out "Failed to create agetty symlink"
+	
+	scriptlog "Enabling minimal services..."
 	for service in ${minimal_services}; do
-		chroot ${root_fs} rc-update add ${service} default || error_out "Cannot enable minimal service ${service}"
+		chroot ${root_fs} rc-update add ${service} default                || error_out "Cannot enable minimal service ${service}"
 	done
 fi
 
 if [[ $provide_basic = true ]]; then
-	scriptlog "Installing basic packages"
-	chroot ${root_fs} emerge -q ${basic_packages} || error_out "Cannot install basic packages"
+	scriptlog "Installing basic packages..."
+	chroot ${root_fs} emerge -q ${basic_packages}        || error_out "Cannot install basic packages"
+
+	scriptlog "Enabling basic services..."
 	for service in ${basic_services}; do
 		chroot ${root_fs} rc-update add ${service} default || error_out "Cannot enable basic service ${service}"
 	done
 fi
 
 
-scriptlog "Installing Kernel"
-chroot ${root_fs} emaint sync -r cwte-linux-repo
-chroot ${root_fs} emerge -q ${vf2_specific_packages} || error_out "Cannot install kernel"
+scriptlog "Installing Kernel..."
+chroot ${root_fs} emaint sync -r cwte-linux-repo              || error_out "failed to sync cwte repo"
+chroot ${root_fs} emerge -q ${vf2_specific_packages}          || error_out "Cannot install kernel"
 chroot ${root_fs} dracut --strip --kver "$(ls /lib/modules/)" || error_out "Cannot build initramfs"
 chroot ${root_fs} mv /boot/initramfs-*.img /boot/initramfs-linux.img
 
 
-scriptlog "Setting timezone"
-chroot ${root_fs} emerge --config sys-libs/timezone-data
+scriptlog "Setting timezone..."
+chroot ${root_fs} emerge --config sys-libs/timezone-data || error_out "Failed to configure timezone"
 
 
-scriptlog "Configuring acounts"
-chroot ${root_fs} /bin/bash -c "echo 'root:rvgentoo' | chpasswd"
+scriptlog "Configuring acounts..."
+chroot ${root_fs} /bin/bash -c "echo 'root:rvgentoo' | chpasswd" || error_out "Failed to set root passwd"
 echo "%wheel  ALL=(ALL:ALL) ALL" >> ${root_fs}/etc/sudoers
 
 if [[ $provide_basic = true ]]; then
-	scriptlog "Setting up the \`user\` account"
-	chroot ${root_fs} useradd -g users -G wheel -m user
-	chroot ${root_fs} /bin/bash -c "echo 'user:user' | chpasswd"
+	scriptlog "Setting up the \`user\` account..."
+	chroot ${root_fs} useradd -g users -G wheel -m user          || error_out "Failed to add user"
+	chroot ${root_fs} /bin/bash -c "echo 'user:user' | chpasswd" || error_out "Failed to set user passwd"
 fi
 
 
