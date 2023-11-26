@@ -28,6 +28,8 @@ error_out () {
 
 VF2_sf_ver=3.8.2
 
+vf2_specific_packages="sys-kernel/cwte-linux sys-firmware/img-gpu-vf2 sys-firmware/visionfive2-wifi-firmware"
+
 # Minimal
 minimal_packages="net-misc/dhcpcd app-admin/sysklogd sys-apps/mlocate net-misc/chrony sys-fs/btrfs-progs sys-kernel/dracut dev-vcs/git dev-util/pahole"
 minimal_services="sysklogd chronyd agetty.ttyS0"
@@ -336,16 +338,16 @@ chroot ${root_fs} emerge --sync
 
 
 scriptlog "Updating everything"
-chroot ${root_fs} emerge --verbose --update --deep --newuse @world || error_out "Cannot update system"
+chroot ${root_fs} emerge -uDNq @world || error_out "Cannot update system"
 
 
 if [[ $compile_with_clang = true ]]; then
 	scriptlog "Installing LLVM toolchain"
-	chroot ${root_fs} emerge ${clang_packages} || error_out "Cannot install clang packages"
+	chroot ${root_fs} emerge -q ${clang_packages} || error_out "Cannot install clang packages"
 	rm ${root_fs}/etc/portage/make.conf
 	cp ${clang_make_conf} ${root_fs}/etc/portage/make.conf
 
-	# Setting up fallback
+	scriptlog "Setting up gcc fallback"
 	cp ${gcc_fallback_conf} ${root_fs}/etc/portage/env/fallback-gcc
 	rm -R ${root_fs}/etc/portage/package.env
 	touch ${root_fs}/etc/portage/package.env
@@ -354,13 +356,13 @@ if [[ $compile_with_clang = true ]]; then
 	done
 
 	scriptlog "Recompiling everything with clang"
-	chroot ${root_fs} emerge -e @world || error_out "Cannot recompile after using clang"
+	chroot ${root_fs} emerge -eq @world || error_out "Cannot recompile after using clang"
 fi
 
 
 if [[ $provide_minimal = true ]]; then
 	scriptlog "Installing minimal packages"
-	chroot ${root_fs} emerge ${minimal_packages} || error_out "Cannot install minimal packages"
+	chroot ${root_fs} emerge -q ${minimal_packages} || error_out "Cannot install minimal packages"
 	chroot ${root_fs} ln -s /etc/init.d/agetty /etc/init.d/agetty.ttyS0
 	for service in ${minimal_services}; do
 		chroot ${root_fs} rc-update add ${service} default || error_out "Cannot enable minimal service ${service}"
@@ -369,7 +371,7 @@ fi
 
 if [[ $provide_basic = true ]]; then
 	scriptlog "Installing basic packages"
-	chroot ${root_fs} emerge ${basic_packages} || error_out "Cannot install basic packages"
+	chroot ${root_fs} emerge -q ${basic_packages} || error_out "Cannot install basic packages"
 	for service in ${basic_services}; do
 		chroot ${root_fs} rc-update add ${service} default || error_out "Cannot enable basic service ${service}"
 	done
@@ -378,7 +380,7 @@ fi
 
 scriptlog "Installing Kernel"
 chroot ${root_fs} emaint sync -r cwte-linux-repo
-chroot ${root_fs} emerge sys-kernel/cwte-linux || error_out "Cannot install kernel"
+chroot ${root_fs} emerge -q ${vf2_specific_packages} || error_out "Cannot install kernel"
 chroot ${root_fs} dracut --strip --kver "$(ls /lib/modules/)" || error_out "Cannot build initramfs"
 chroot ${root_fs} mv /boot/initramfs-*.img /boot/initramfs-linux.img
 
