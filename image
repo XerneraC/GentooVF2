@@ -63,9 +63,12 @@ agetty_serial_conf="${resource_dir}/agetty_serial.conf"
    part_table_file="${resource_dir}/part_table"
      gcc_make_conf="${resource_dir}/gcc_make.conf"
      extlinux_conf="${resource_dir}/extlinux.conf"
+       dracut_conf="${resource_dir}/dracut.conf"
        resolv_conf="${resource_dir}/resolv.conf"
         fstab_file="${resource_dir}/fstab"
          uEnv_file="${resource_dir}/uEnv.txt"
+
+all_resources=($agetty_serial_conf $gcc_fallback_conf $kernel_repo_conf $clang_make_conf $part_table_file $gcc_make_conf $extlinux_conf $dracut_conf $resolv_conf $fstab_file $uEnv_file)
 
 stage3_tarball="${download_dir}/stage3.tar.xz"
        spl_img="${download_dir}/spl.bin.normal.out"
@@ -191,6 +194,10 @@ scriptlog "Verifying dependencies..."
 command -v mkfs.vfat  &> /dev/null || error_out "Command \`mkfs.vfat\` is missing! (most likely found in the \`dosfstools\` package)"
 command -v mkfs.btrfs &> /dev/null || error_out "Command \`mkfs.btrfs\` is missing! (most likely found in the \`btrfs-progs\` package)"
 
+scriptlog "Verifying resources..."
+for resource in $all_resources; do
+	test -f $resource || error_out "Resource \`${resource}\` could not be found"
+done
 
 if [[ $image_direct_drive = true ]]; then
 	scriptlog "Imaging to physical target..."
@@ -294,12 +301,15 @@ tar xpf $stage3_tarball --xattrs-include='*.*' --numeric-owner -C $root_fs || er
 
 scriptlog "Copying over other files..."
 mkdir -p ${root_fs}/etc/portage/repos.conf
+mkdir -p ${root_fs}/etc/dracut.conf.d
 
 cp $gcc_make_conf         ${root_fs}/etc/portage/make.conf
 cp $fstab_file            ${root_fs}/etc/fstab
 cp $resolv_conf           ${root_fs}/etc/resolv.conf
 cp $kernel_repo_conf      ${root_fs}/etc/portage/repos.conf/cwte-linux-repo.conf
 cp $agetty_serial_conf    ${root_fs}/etc/conf.d/agetty.ttyS0
+
+install -Dm644 ${dracut_conf} ${root_fs}/etc/dracut.conf
 
 cp ${root_fs}/usr/share/portage/config/repos.conf ${root_fs}/etc/portage/repos.conf/gentoo.conf
 
@@ -386,8 +396,8 @@ fi
 
 scriptlog "Installing Kernel..."
 chroot ${root_fs} emaint sync -r cwte-linux-repo              || error_out "failed to sync cwte repo"
-chroot ${root_fs} emerge -q ${vf2_specific_packages}          || error_out "Cannot install kernel"
-chroot ${root_fs} dracut --strip --kver "$(ls /lib/modules/)" || error_out "Cannot build initramfs"
+chroot ${root_fs} emerge -q ${vf2_specific_packages}          || error_out "Cannot install vf2 specific packages"
+chroot ${root_fs} dracut --fstab --kver "$(ls /lib/modules/)" || error_out "Cannot build initramfs"
 chroot ${root_fs} mv /boot/initramfs-*.img /boot/initramfs-linux.img
 
 
