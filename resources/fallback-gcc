@@ -1,0 +1,13 @@
+COMMON_FLAGS="-mabi=lp64d -march=rv64imafdc_zicsr_zba_zbb -mcpu=sifive-u74 -mtune=sifive-7-series -O2 -pipe -fdiagnostics-color=always -Wno-unknown-warning-option"
+CFLAGS="${COMMON_FLAGS}"
+CXXFLAGS="${COMMON_FLAGS}"
+FCFLAGS="${COMMON_FLAGS}"
+FFLAGS="${COMMON_FLAGS}"
+
+CC="gcc"
+CXX="g++"
+CPP="cpp"
+
+AR="${CHOST}-ar"
+NM="${CHOST}-nm"
+RANLIB="${CHOST}-ranlib"

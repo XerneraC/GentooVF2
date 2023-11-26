@@ -55,6 +55,8 @@ fwp_URI="https://github.com/starfive-tech/VisionFive2/releases/download/VF2_v${V
 
 
 agetty_serial_conf="${resource_dir}/agetty_serial.conf"
+fallback_pkg_index="${resource_dir}/fallback-packages"
+ gcc_fallback_conf="${resource_dir}/fallback-gcc"
   kernel_repo_conf="${resource_dir}/kernel_repo.conf"
    clang_make_conf="${resource_dir}/clang_make.conf"
    part_table_file="${resource_dir}/part_table"
@@ -343,6 +345,12 @@ if [[ $compile_with_clang = true ]]; then
 	chroot ${root_fs} emerge ${clang_packages} || error_out "Cannot install clang packages"
 	rm ${root_fs}/etc/portage/make.conf
 	cp ${clang_make_conf} ${root_fs}/etc/portage/make.conf
+
+	# Setting up fallback
+	cp ${gcc_fallback_conf} ${root_fs}/etc/portage/env/fallback-gcc
+	rm -R ${root_fs}/etc/portage/package.env
+	cp ${fallback_pkg_index} ${root_fs}/etc/portage/package.env
+
 	scriptlog "Recompiling everything with clang"
 	chroot ${root_fs} emerge -e @world || error_out "Cannot recompile after using clang"
 fi
