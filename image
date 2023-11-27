@@ -2,7 +2,7 @@
 
 
 scriptlog () {
-	echo -e "\033[38;5;201m>>= Imager =<< \033[0m${1}"
+	echo -e "\033[38;5;201m>>= Imager =<< \033[0m${1}\033[0m"
 }
 
 error_out () {
@@ -189,6 +189,8 @@ esac
 #  |  |      |  |\  \----.|  |____ |  |     /  _____  \  |  |\  \----./  _____  \   |  |     |  | |  `--'  | |  |\   | 
 #  | _|      | _| `._____||_______|| _|    /__/     \__\ | _| `._____/__/     \__\  |__|     |__|  \______/  |__| \__| 
 #                                                                                                                      
+
+scriptlog "Start time: \033[32m$(date)"
 
 scriptlog "Verifying dependencies..."
 command -v mkfs.vfat  &> /dev/null || error_out "Command \`mkfs.vfat\` is missing! (most likely found in the \`dosfstools\` package)"
@@ -431,4 +433,5 @@ if [[ $cleanup = true ]]; then
 	rm -R ${working_dir} || error_out "Cannot remove working directory\nDon't worry. All the work was done, so you can just unmount manually, or restart, and your image is waiting for you"
 fi
 
+scriptlog "End time: \033[32m$(date)"
 scriptlog "Done! Image created!"
