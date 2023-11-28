@@ -309,7 +309,6 @@ mkdir -p ${root_fs}/etc/dracut.conf.d
 cp $gcc_make_conf         ${root_fs}/etc/portage/make.conf
 cp $fstab_file            ${root_fs}/etc/fstab
 cp $resolv_conf           ${root_fs}/etc/resolv.conf
-cp $kernel_repo_conf      ${root_fs}/etc/portage/repos.conf/cwte-linux-repo.conf
 cp $agetty_serial_conf    ${root_fs}/etc/conf.d/agetty.ttyS0
 cp $accept_kw_file        ${root_fs}/etc/portage/package.accept_keywords
 
@@ -399,6 +398,7 @@ fi
 
 
 scriptlog "Installing Kernel..."
+cp $kernel_repo_conf ${root_fs}/etc/portage/repos.conf/cwte-linux-repo.conf
 chroot ${root_fs} emaint sync -r cwte-linux-repo              || error_out "failed to sync cwte repo"
 chroot ${root_fs} emerge -q ${vf2_specific_packages}          || error_out "Cannot install vf2 specific packages"
 chroot ${root_fs} dracut --fstab --kver "$(ls /lib/modules/)" || error_out "Cannot build initramfs"
