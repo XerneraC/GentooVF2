@@ -30,3 +30,8 @@ Examples:
 		This will create a minimal system on /dev/sda with the hostname "MyVisionfive2" and the timezone of Zurich
 	`./image file clang-based.img --useclang
 		This will create an image called `clang-based.img` using clang as its compiler
+
+Build info (As tested on my VF2 8G):
+	BASIC without clang (tested on 2023-11-29):
+		Build Time: 8h
+		Image size: 3.1GB
