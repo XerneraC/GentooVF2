@@ -87,41 +87,6 @@ stage3_tarball="${download_dir}/stage3.tar.xz"
 #  | _|    /__/     \__\ | _| `._____|_______/    |__| |__| \__|  \______|    /__/     \__\ | _| `._____| \______| |_______/    
 #                                                                                                                               
 
-usage="\n
-usage:\n
-\t./image device <device> [Options...]\n
-\t\tImage a device connected. Example: \`./image direct sda [Options...]\`\n
-\t./image file <device> [Options...]\n
-\t\tProduce an image file instead. Example: \`./image file image.img [Options...]\`\n
-\t./image help\n
-\t\tPrint this help page\n
-\n
-Options:\n
-\t--hostname=<name>\n
-\t\tProvide a hostname. Default is \"GentooVF2\"\n
-\t--timezone=<zone>\n
-\t\tProvide a timezone. Default is \"Europe/Brussels\"\n
-\t--useclang\n
-\t\tImage a clang-based version of gentoo\n
-\t--skipclean\n
-\t\tDon't unmount and remove the working directory at the end\n
-\t--scope=<scope>\n
-\t\tChoose the scope of the image. Default value: \`BASIC\`\n
-\n
-Scopes:\n
-\tMINIMAL\n
-\t\tThe most minimal setup possible. Only has root account\n
-\tBASIC\n
-\t\tHas a few additional packages that the user most likely wants\n
-\n
-\n
-Examples:\n
-\t\`./image device sda --hostname=\"MyVisionfive2\" --timezone=\"Europe/Zurich\" --scope=MINIMAL\`\n
-\t\tThis will create a minimal system on /dev/sda with the hostname \"MyVisionfive2\" and the timezone of Zurich\n
-\t\`./image file clang-based.img --useclang\n
-\t\tThis will create an image called \`clang-based.img\` using clang as its compiler\n
-"
-
 case $1 in
 	device)
 		image_direct_drive=true
@@ -132,7 +97,7 @@ case $1 in
 		image_target=$2
 		;;
 	help)
-		echo -e $usage
+		cat usage.txt
 		exit 0
 		;;
 	*)

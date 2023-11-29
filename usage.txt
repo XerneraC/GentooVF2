@@ -1,0 +1,32 @@
+usage:
+	./image device <device> [Options...]
+		Image a device connected. Example: `./image direct sda [Options...]`
+	./image file <device> [Options...]
+		Produce an image file instead. Example: `./image file image.img [Options...]`
+	./image help
+		Print this help page
+
+Options:
+	--hostname=<name>
+		Provide a hostname. Default is "GentooVF2"
+	--timezone=<zone>
+		Provide a timezone. Default is "Europe/Brussels"
+	--useclang
+		Image a clang-based version of gentoo
+	--skipclean
+		Don't unmount and remove the working directory at the end
+	--scope=<scope>
+		Choose the scope of the image. Default value: `BASIC`
+
+Scopes:
+	MINIMAL
+		The most minimal setup possible. Only has root account
+	BASIC
+		Has a few additional packages that the user most likely wants
+
+
+Examples:
+	`./image device sda --hostname="MyVisionfive2" --timezone="Europe/Zurich" --scope=MINIMAL`
+		This will create a minimal system on /dev/sda with the hostname "MyVisionfive2" and the timezone of Zurich
+	`./image file clang-based.img --useclang
+		This will create an image called `clang-based.img` using clang as its compiler
