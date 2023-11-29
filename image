@@ -402,7 +402,7 @@ cp $kernel_repo_conf ${root_fs}/etc/portage/repos.conf/cwte-linux-repo.conf
 chroot ${root_fs} emaint sync -r cwte-linux-repo              || error_out "failed to sync cwte repo"
 chroot ${root_fs} emerge -q ${vf2_specific_packages}          || error_out "Cannot install vf2 specific packages"
 chroot ${root_fs} dracut --fstab --kver "$(ls /lib/modules/)" || error_out "Cannot build initramfs"
-chroot ${root_fs} mv /boot/initramfs-*.img /boot/initramfs-linux.img
+mv ${efi_fs}/initramfs-*.img ${efi_fs}/initramfs-linux.img
 
 
 scriptlog "Setting timezone..."
