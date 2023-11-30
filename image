@@ -26,7 +26,7 @@ error_out () {
 #   \______| \______/  |__| \__| |__|     |__|  \______|  \______/  | _| `._____/__/     \__\  |__|     |__|  \______/  |__| \__| 
 #                                                                                                                                 
 
-VF2_sf_ver=3.8.2
+VF2_sf_tag="JH7110_VF2_515_v3.9.3"
 
 vf2_specific_packages="sys-kernel/cwte-linux sys-firmware/img-gpu-vf2 sys-firmware/wifi-vf2 media-libs/mesa-vf2"
 
@@ -52,8 +52,8 @@ stage3_index="https://distfiles.gentoo.org/releases/riscv/autobuilds/current-sta
 stage3_id="$(wget -qO- ${stage3_index} | sed -E -n 's/^.*([0-9]{8}T[0-9]{6}Z).*$/\1/p')" || error_out "Cannot download stage 3 index"
 stage3_URI="https://distfiles.gentoo.org/releases/riscv/autobuilds/${stage3_id}/stage3-rv64_lp64d-openrc-${stage3_id}.tar.xz"
 
-spl_URI="https://github.com/starfive-tech/VisionFive2/releases/download/VF2_v${VF2_sf_ver}/u-boot-spl.bin.normal.out"
-fwp_URI="https://github.com/starfive-tech/VisionFive2/releases/download/VF2_v${VF2_sf_ver}/visionfive2_fw_payload.img"
+spl_URI="https://github.com/starfive-tech/VisionFive2/releases/download/${VF2_sf_tag}/u-boot-spl.bin.normal.out"
+fwp_URI="https://github.com/starfive-tech/VisionFive2/releases/download/${VF2_sf_tag}/visionfive2_fw_payload.img"
 
 
 agetty_serial_conf="${resource_dir}/agetty_serial.conf"
