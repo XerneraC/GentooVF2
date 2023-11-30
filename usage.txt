@@ -17,12 +17,22 @@ Options:
 		Don't unmount and remove the working directory at the end
 	--scope=<scope>
 		Choose the scope of the image. Default value: `BASIC`
+	--mesa=<backend>
+		Specify the backend to use for graphics. Default value: `NONE`
 
 Scopes:
 	MINIMAL
 		The most minimal setup possible. Only has root account
 	BASIC
 		Has a few additional packages that the user most likely wants
+
+Mesa Backends:
+	NONE
+		Do not build mesa
+	X
+		Add `X` to useflags and build mesa
+	WAYLAND
+		Add `wayland` to useflags and build mesa
 
 
 Examples:
