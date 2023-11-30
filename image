@@ -28,7 +28,7 @@ error_out () {
 
 VF2_sf_ver=3.8.2
 
-vf2_specific_packages="sys-kernel/cwte-linux sys-firmware/img-gpu-vf2 sys-firmware/wifi-vf2"
+vf2_specific_packages="sys-kernel/cwte-linux sys-firmware/img-gpu-vf2 sys-firmware/wifi-vf2 media-libs/mesa-vf2"
 
 # Minimal
 minimal_packages="net-misc/dhcpcd app-admin/sysklogd sys-apps/mlocate net-misc/chrony sys-fs/btrfs-progs sys-kernel/dracut dev-vcs/git dev-util/pahole"
